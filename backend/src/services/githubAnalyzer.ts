@@ -1,5 +1,7 @@
 import { getRepositoryInfo } from "./githubService";
 import { generateArchitectureRecommendation } from "./architectureEngine";
+import { generateDeploymentChecklist } from "./deploymentChecklistEngine";
+import { generateReadinessScore } from "./readinessScoreEngine";
 import {
   scanRepository,
   type TechnologyStack,
@@ -17,6 +19,14 @@ export async function analyzeRepository(repository: string) {
     repositoryIntelligence;
   const architectureRecommendation = generateArchitectureRecommendation(
     technologyStack,
+  );
+  const readinessScore = generateReadinessScore(
+    technologyStack,
+    architectureRecommendation,
+  );
+  const deploymentChecklist = generateDeploymentChecklist(
+    technologyStack,
+    architectureRecommendation,
   );
   const repositoryMetadata = {
     owner: repoInfo.owner.login,
@@ -60,6 +70,10 @@ export async function analyzeRepository(repository: string) {
     deploymentRecommendation,
 
     architectureRecommendation,
+
+    readinessScore,
+
+    deploymentChecklist,
 
   };
 
