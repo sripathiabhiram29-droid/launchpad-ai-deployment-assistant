@@ -1,4 +1,5 @@
 import { getRepositoryInfo } from "./githubService";
+import { generateArchitectureRecommendation } from "./architectureEngine";
 import {
   scanRepository,
   type TechnologyStack,
@@ -11,6 +12,11 @@ export async function analyzeRepository(repository: string) {
   const repositoryIntelligence = await scanRepository(
     repoInfo.owner.login,
     repoInfo.name,
+  );
+  const { technologyStack, deploymentRecommendation } =
+    repositoryIntelligence;
+  const architectureRecommendation = generateArchitectureRecommendation(
+    technologyStack,
   );
   const repositoryMetadata = {
     owner: repoInfo.owner.login,
@@ -39,20 +45,21 @@ export async function analyzeRepository(repository: string) {
     architecture: {
 
       applicationType: getApplicationType(
-        repositoryIntelligence.technologyStack,
+        technologyStack,
         repoInfo.language,
       ),
 
-      recommendation: repositoryIntelligence.deploymentRecommendation.strategy,
+      recommendation: deploymentRecommendation.strategy,
 
     },
 
     repositoryMetadata,
 
-    technologyStack: repositoryIntelligence.technologyStack,
+    technologyStack,
 
-    deploymentRecommendation:
-      repositoryIntelligence.deploymentRecommendation,
+    deploymentRecommendation,
+
+    architectureRecommendation,
 
   };
 
