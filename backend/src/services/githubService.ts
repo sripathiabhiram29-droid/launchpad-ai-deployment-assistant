@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 
-const octokit = new Octokit();
+export const githubClient = new Octokit();
 
 export async function getRepositoryInfo(repositoryUrl:string){
 
@@ -12,7 +12,7 @@ export async function getRepositoryInfo(repositoryUrl:string){
   const repo = parts[1];
 
 
-  const response = await octokit.repos.get({
+  const response = await githubClient.repos.get({
     owner,
     repo
   });

@@ -16,6 +16,16 @@ type RepositoryAnalysis = {
   deployment: string;
 };
 
+type AnalyzeRepositoryResponse = {
+  analysis?: {
+    language?: string;
+    architecture?: {
+      applicationType?: string;
+      recommendation?: string;
+    };
+  };
+};
+
 function App() {
   const [repository, setRepository] = useState("");
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
@@ -32,8 +42,14 @@ function App() {
       setLoading(true);
       console.log("Analyzing repository:", repositoryUrl);
 
-      const result = await analyzeRepository(repositoryUrl);
-      setAnalysis(result.analysis);
+      const response = await analyzeRepository(repositoryUrl) as AnalyzeRepositoryResponse;
+
+      setAnalysis({
+        framework: response.analysis?.language || "Unknown",
+        backend: response.analysis?.architecture?.applicationType || "Unknown",
+        database: "Not detected",
+        deployment: response.analysis?.architecture?.recommendation || "Unknown",
+      });
     } catch (error) {
       console.error("Repository analysis failed:", error);
     } finally {
