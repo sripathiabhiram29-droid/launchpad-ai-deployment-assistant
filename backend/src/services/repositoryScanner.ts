@@ -1,4 +1,8 @@
-import { githubClient } from "./githubService";
+import {
+  GitHubRateLimitError,
+  githubClient,
+  isGitHubRateLimitError,
+} from "./githubService";
 
 const FRONTEND_TECHNOLOGIES = ["React", "Next.js", "Angular", "Vue"] as const;
 const BACKEND_TECHNOLOGIES = [
@@ -137,6 +141,10 @@ export async function scanRepository(
       if (result.status === "fulfilled") {
         analyzeFile(result.value, state);
       } else {
+        if (isGitHubRateLimitError(result.reason)) {
+          throw new GitHubRateLimitError();
+        }
+
         console.warn(
           `A repository file could not be analyzed: ${getErrorMessage(result.reason)}`,
         );
@@ -150,6 +158,10 @@ export async function scanRepository(
       deploymentRecommendation: buildDeploymentRecommendation(technologyStack),
     };
   } catch (error) {
+    if (isGitHubRateLimitError(error)) {
+      throw new GitHubRateLimitError();
+    }
+
     throw new Error(
       `Unable to scan GitHub repository ${normalizedOwner}/${normalizedRepository}: ${getErrorMessage(error)}`,
     );

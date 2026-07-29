@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
 import { analyzeRepository as analyzeRepo } from "../services/githubAnalyzer";
+import {
+  GITHUB_RATE_LIMIT_ERROR_MESSAGE,
+  isGitHubRateLimitError,
+} from "../services/githubService";
 
 
 export async function analyzeRepository(
@@ -32,6 +36,13 @@ export async function analyzeRepository(
   } catch (error) {
 
     console.error(error);
+
+    if (isGitHubRateLimitError(error)) {
+      res.status(429).json({
+        error: GITHUB_RATE_LIMIT_ERROR_MESSAGE
+      });
+      return;
+    }
 
     res.status(500).json({
       error: "Repository analysis failed"
