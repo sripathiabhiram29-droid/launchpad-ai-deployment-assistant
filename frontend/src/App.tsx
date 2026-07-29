@@ -9,21 +9,55 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+type RepositoryMetadata = {
+  name?: string;
+  description?: string | null;
+  language?: string | null;
+  stars?: number;
+};
+
+type TechnologyStack = {
+  frontend?: string[];
+  backend?: string[];
+  database?: string[];
+  containerized?: boolean;
+  infrastructure?: string[];
+  cicd?: string[];
+};
+
+type DeploymentRecommendation = {
+  platform?: string;
+  services?: string[];
+  strategy?: string;
+};
+
+type ArchitectureRecommendation = {
+  applicationArchitecture?: {
+    type?: string;
+    components?: string[];
+  };
+  railwayDeploymentPlan?: {
+    services?: string[];
+    environmentVariables?: string[];
+    deploymentStrategy?: string;
+  };
+  scalingRecommendations?: string[];
+  securityRecommendations?: string[];
+};
+
 type RepositoryAnalysis = {
-  framework: string;
-  backend: string;
-  database: string;
-  deployment: string;
+  name?: string;
+  description?: string | null;
+  language?: string | null;
+  stars?: number;
+  repositoryMetadata?: RepositoryMetadata;
+  technologyStack?: TechnologyStack;
+  deploymentRecommendation?: DeploymentRecommendation;
+  architectureRecommendation?: ArchitectureRecommendation;
 };
 
 type AnalyzeRepositoryResponse = {
-  analysis?: {
-    language?: string;
-    architecture?: {
-      applicationType?: string;
-      recommendation?: string;
-    };
-  };
+  analysis?: RepositoryAnalysis;
 };
 
 function App() {
@@ -42,16 +76,18 @@ function App() {
       setLoading(true);
       console.log("Analyzing repository:", repositoryUrl);
 
-      const response = await analyzeRepository(repositoryUrl) as AnalyzeRepositoryResponse;
+      const response = (await analyzeRepository(
+        repositoryUrl,
+      )) as AnalyzeRepositoryResponse;
 
-      setAnalysis({
-        framework: response.analysis?.language || "Unknown",
-        backend: response.analysis?.architecture?.applicationType || "Unknown",
-        database: "Not detected",
-        deployment: response.analysis?.architecture?.recommendation || "Unknown",
-      });
+      if (!response.analysis) {
+        throw new Error("Repository analysis response is missing analysis data");
+      }
+
+      setAnalysis(response.analysis);
     } catch (error) {
       console.error("Repository analysis failed:", error);
+      setAnalysis(null);
     } finally {
       setLoading(false);
     }
@@ -134,18 +170,7 @@ function App() {
           </button>
         </div>
 
-        {analysis && (
-          <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 text-left shadow-xl shadow-blue-950/20">
-            <h2 className="text-xl font-semibold">Repository Analysis</h2>
-
-            <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-              <AnalysisResult label="Framework" value={analysis.framework} />
-              <AnalysisResult label="Backend" value={analysis.backend} />
-              <AnalysisResult label="Database" value={analysis.database} />
-              <AnalysisResult label="Deployment" value={analysis.deployment} />
-            </dl>
-          </div>
-        )}
+        {analysis && <AnalysisDashboard analysis={analysis} />}
 
       </section>
 
@@ -240,11 +265,223 @@ function App() {
 }
 
 
-function AnalysisResult({ label, value }: { label: string; value: string }) {
+function AnalysisDashboard({ analysis }: { analysis: RepositoryAnalysis }) {
+  const metadata = analysis.repositoryMetadata;
+  const technologyStack = analysis.technologyStack;
+  const deploymentRecommendation = analysis.deploymentRecommendation;
+  const architectureRecommendation = analysis.architectureRecommendation;
+  const railwayPlan = architectureRecommendation?.railwayDeploymentPlan;
+  const railwayServices = railwayPlan?.services?.length
+    ? railwayPlan.services
+    : deploymentRecommendation?.services;
+  const deploymentStrategy =
+    railwayPlan?.deploymentStrategy || deploymentRecommendation?.strategy;
+  const stars = metadata?.stars ?? analysis.stars;
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+    <section className="mx-auto mt-12 max-w-6xl" aria-labelledby="analysis-title">
+      <div className="text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-400">
+          Repository Intelligence
+        </p>
+        <h2 id="analysis-title" className="mt-3 text-3xl font-bold">
+          Cloud Architecture Dashboard
+        </h2>
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <AnalysisCard icon={<GitBranch />} title="Repository Overview">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <StackItem
+              label="Repository name"
+              value={metadata?.name || analysis.name}
+            />
+            <StackItem
+              label="Programming language"
+              value={metadata?.language || analysis.language}
+            />
+            <StackItem
+              label="Stars"
+              value={stars === undefined ? undefined : stars.toLocaleString()}
+            />
+            <StackItem
+              label="Description"
+              value={metadata?.description || analysis.description}
+              wide
+            />
+          </dl>
+        </AnalysisCard>
+
+        <AnalysisCard icon={<Server />} title="Technology Stack">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <StackItem label="Frontend" value={technologyStack?.frontend} />
+            <StackItem label="Backend" value={technologyStack?.backend} />
+            <StackItem label="Database" value={technologyStack?.database} />
+            <StackItem
+              label="Containerization"
+              value={
+                technologyStack?.containerized
+                  ? "Docker enabled"
+                  : "Not detected"
+              }
+            />
+            <StackItem
+              label="Infrastructure"
+              value={technologyStack?.infrastructure}
+            />
+            <StackItem label="CI/CD" value={technologyStack?.cicd} />
+          </dl>
+        </AnalysisCard>
+
+        <AnalysisCard icon={<Cloud />} title="Railway Deployment Blueprint">
+          <div className="space-y-6">
+            <StackItem
+              label="Recommended platform"
+              value={deploymentRecommendation?.platform}
+            />
+            <RecommendationList title="Services" items={railwayServices} />
+            <RecommendationList
+              title="Environment variables"
+              items={railwayPlan?.environmentVariables}
+            />
+            <div>
+              <h4 className="text-sm font-medium text-slate-400">
+                Deployment strategy
+              </h4>
+              <p className="mt-2 leading-7 text-slate-200">
+                {deploymentStrategy || "Not detected"}
+              </p>
+            </div>
+          </div>
+        </AnalysisCard>
+
+        <AnalysisCard icon={<Sparkles />} title="Architecture Recommendations">
+          <div className="space-y-6">
+            <StackItem
+              label="Application architecture"
+              value={
+                architectureRecommendation?.applicationArchitecture?.type
+              }
+            />
+            <RecommendationList
+              title="Components"
+              items={
+                architectureRecommendation?.applicationArchitecture?.components
+              }
+            />
+            <RecommendationList
+              title="Scaling recommendations"
+              items={architectureRecommendation?.scalingRecommendations}
+            />
+            <RecommendationList
+              title="Security recommendations"
+              items={architectureRecommendation?.securityRecommendations}
+            />
+          </div>
+        </AnalysisCard>
+      </div>
+    </section>
+  );
+}
+
+
+function AnalysisCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-left shadow-xl shadow-blue-950/20">
+      <div className="flex items-center gap-3">
+        <div className="rounded-lg bg-blue-500/10 p-2 text-blue-400">
+          {icon}
+        </div>
+        <h3 className="text-xl font-semibold">{title}</h3>
+      </div>
+
+      <div className="mt-6">{children}</div>
+    </article>
+  );
+}
+
+
+function StackItem({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value?: string | string[] | null;
+  wide?: boolean;
+}) {
+  const values = Array.isArray(value) ? value.filter(Boolean) : [];
+
+  return (
+    <div
+      className={`rounded-xl border border-slate-800 bg-slate-950/60 p-4 ${
+        wide ? "sm:col-span-2" : ""
+      }`}
+    >
       <dt className="text-sm font-medium text-slate-400">{label}</dt>
-      <dd className="mt-1 text-base font-semibold text-white">{value}</dd>
+      <dd className="mt-2">
+        {Array.isArray(value) ? (
+          values.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {values.map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-sm font-medium text-blue-200"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-slate-300">Not detected</span>
+          )
+        ) : (
+          <span className="leading-6 text-slate-200">
+            {value || "Not detected"}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+
+function RecommendationList({
+  title,
+  items,
+}: {
+  title: string;
+  items?: string[];
+}) {
+  const recommendations = items?.filter(Boolean) ?? [];
+
+  return (
+    <div>
+      <h4 className="text-sm font-medium text-slate-400">{title}</h4>
+
+      {recommendations.length > 0 ? (
+        <ul className="mt-3 space-y-3">
+          {recommendations.map((item) => (
+            <li key={item} className="flex gap-3 leading-6 text-slate-200">
+              <span
+                aria-hidden="true"
+                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400"
+              />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-slate-300">Not detected</p>
+      )}
     </div>
   );
 }

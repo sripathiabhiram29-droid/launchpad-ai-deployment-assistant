@@ -13,6 +13,7 @@ export interface ArchitectureRecommendation {
     components: string[];
   };
   railwayDeploymentPlan: {
+    platform: string;
     services: string[];
     environmentVariables: string[];
     deploymentStrategy: string;
@@ -83,17 +84,18 @@ export function generateArchitectureRecommendation(
         }),
       },
       railwayDeploymentPlan: {
+        platform: determineRailwayPlatform(effectiveFrontends, backends),
         services: buildRailwayServices(
           effectiveFrontends,
           backends,
           databases,
           stack.containerized,
+          githubActionsDetected,
         ),
         environmentVariables: buildEnvironmentVariables(
           effectiveFrontends,
           backends,
           databases,
-          githubActionsDetected,
         ),
         deploymentStrategy: buildDeploymentStrategy({
           frontends: effectiveFrontends,
@@ -206,16 +208,16 @@ function buildArchitectureComponents(options: {
   const components = [
     ...options.frontends.map((frontend) =>
       isNextJs(frontend)
-        ? `Frontend tier: Run ${frontend} as an independently deployable web service supporting server-rendered and static routes.`
-        : `Frontend tier: Publish ${frontend} as an independently deployable web service with environment-specific API routing.`,
+        ? `Frontend tier: Deploy ${frontend} as an independent Railway service with automated builds, environment-specific runtime configuration, and scalable delivery for server-rendered and static routes.`
+        : `Frontend tier: Deploy ${frontend} as an independent service with automated builds, environment-specific configuration, CDN caching, and optimized static asset delivery.`,
     ),
     ...options.backends.map(
       (backend) =>
-        `Application tier: Run ${backend} as a stateless API service with health checks and private managed-database connectivity.`,
+        `Application tier: Deploy ${backend} as a stateless API service with health checks, load-balanced horizontal scaling, and private managed-database connectivity.`,
     ),
     ...options.databases.map(
       (database) =>
-        `Data tier: Provision ${database} as a managed service with persistent storage, automated backups, and private network access.`,
+        `Data tier: Provision ${database} as a managed database service with connection pooling, persistent storage, automated backups, and private network access.`,
     ),
   ];
 
@@ -243,27 +245,41 @@ function buildArchitectureComponents(options: {
   return components;
 }
 
+function determineRailwayPlatform(
+  frontends: string[],
+  backends: string[],
+): string {
+  if (frontends.length > 0 && backends.length === 0) {
+    return "Railway Static/Frontend Service";
+  }
+
+  return "Railway Application Platform";
+}
+
 function buildRailwayServices(
   frontends: string[],
   backends: string[],
   databases: string[],
   containerized: boolean,
+  githubActionsDetected: boolean,
 ): string[] {
-  const services = [
-    ...frontends.map((frontend) =>
-      isNextJs(frontend)
-        ? `Public Railway web service for the ${frontend} frontend`
-        : `Public Railway frontend service for the ${frontend} build`,
-    ),
-    ...backends.map(
-      (backend) => `Private Railway application service for the ${backend} API`,
-    ),
-    ...databases.map((database) =>
-      database.toLowerCase().includes("dynamodb")
-        ? "External managed DynamoDB service connected to Railway application services"
-        : `Managed ${canonicalDatabaseName(database)} database service with persistent storage`,
-    ),
-  ];
+  const services: string[] = [];
+
+  if (frontends.length > 0) {
+    services.push("Frontend Service");
+  }
+  if (backends.length > 0) {
+    services.push("Backend API Service");
+  }
+  if (databases.length > 0) {
+    services.push("Managed Database Service");
+  }
+  if (
+    githubActionsDetected ||
+    (frontends.length > 0 && backends.length === 0)
+  ) {
+    services.push("CI/CD Pipeline");
+  }
 
   if (services.length === 0) {
     services.push(
@@ -280,9 +296,10 @@ function buildEnvironmentVariables(
   frontends: string[],
   backends: string[],
   databases: string[],
-  githubActionsDetected: boolean,
 ): string[] {
-  const environmentVariables: string[] = [];
+  const environmentVariables = [
+    "APPLICATION_CONFIGURATION — non-secret, environment-specific application settings",
+  ];
 
   if (frontends.length > 0 && backends.length > 0) {
     environmentVariables.push(
@@ -290,43 +307,16 @@ function buildEnvironmentVariables(
     );
   }
 
-  for (const database of databases) {
-    const normalizedDatabase = database.toLowerCase();
-
-    if (normalizedDatabase.includes("postgres")) {
-      environmentVariables.push(
-        "DATABASE_URL — private PostgreSQL connection string referenced by application services",
-      );
-    } else if (normalizedDatabase.includes("mysql")) {
-      environmentVariables.push(
-        "MYSQL_URL — private MySQL connection string referenced by application services",
-      );
-    } else if (normalizedDatabase.includes("mongo")) {
-      environmentVariables.push(
-        "MONGODB_URI — private MongoDB connection string referenced by application services",
-      );
-    } else if (normalizedDatabase.includes("dynamodb")) {
-      environmentVariables.push(
-        "AWS_REGION — region containing the DynamoDB tables",
-        "AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY — scoped DynamoDB credentials stored as Railway secrets",
-      );
-    }
-  }
-
-  if (includesTechnology(backends, ["node.js", "nodejs", "express"])) {
-    environmentVariables.push("NODE_ENV=production — Node.js runtime mode");
-  }
-  if (includesTechnology(backends, ["python", "fastapi", "django"])) {
-    environmentVariables.push("APP_ENV=production — Python application mode");
-  }
-  if (includesTechnology(backends, ["java", "spring boot"])) {
+  if (databases.length > 0) {
     environmentVariables.push(
-      "SPRING_PROFILES_ACTIVE=production — Spring runtime profile",
+      "DATABASE_URL — managed database connection string supplied through a private service reference",
     );
   }
-  if (githubActionsDetected) {
+
+  if (backends.length > 0) {
     environmentVariables.push(
-      "RAILWAY_TOKEN — scoped deployment credential stored as a GitHub Actions secret",
+      "API_KEYS — third-party integration credentials stored as encrypted application secrets",
+      "JWT_SECRET — high-entropy signing secret stored separately for each environment",
     );
   }
 
@@ -345,15 +335,15 @@ function buildDeploymentStrategy(options: {
 
   if (options.frontends.length > 0 && options.backends.length > 0) {
     steps.push(
-      "Deploy frontend and backend workloads as independent Railway services so each tier can be released and scaled without coupling.",
+      "Deploy the frontend and backend as independent Railway services with automated builds, environment-specific configuration, and independently scalable delivery.",
     );
   } else if (options.frontends.length > 0) {
     steps.push(
-      "Deploy the frontend as a public Railway web service with environment-specific configuration.",
+      "Deploy the frontend as an independent Railway service with automated builds, environment-specific configuration, CDN-aware asset delivery, and a promotion path across environments.",
     );
   } else if (options.backends.length > 0) {
     steps.push(
-      "Deploy the backend as a stateless Railway application service with health checks and centralized logs.",
+      "Deploy the backend as a stateless Railway application service with health checks, load-balanced horizontal scaling, centralized logs, and private downstream connectivity.",
     );
   } else {
     steps.push(
@@ -395,17 +385,21 @@ function buildScalingRecommendations(
 
   if (frontends.length > 0) {
     recommendations.push(
-      "Cache immutable frontend assets at the edge and scale server-rendered frontend instances horizontally when request concurrency increases.",
+      "Use CDN caching with content-hashed cache policies to reduce origin traffic and improve global frontend latency.",
+      "Optimize static assets through minification, compression, responsive images, and immutable build artifacts.",
     );
   }
   if (backends.length > 0) {
     recommendations.push(
-      "Keep API services stateless, expose readiness and liveness endpoints, and add replicas based on latency, throughput, and resource saturation.",
+      "Keep backend services stateless and scale horizontally based on request latency, throughput, and resource saturation.",
+      "Expose readiness and liveness health checks so unhealthy instances are removed from service automatically.",
+      "Distribute API traffic across healthy replicas with load balancing and validate session independence before scaling out.",
     );
   }
   if (databases.length > 0) {
     recommendations.push(
-      "Use connection pooling, monitor storage and query latency, and scale database compute or add read capacity before sustained utilization reaches critical thresholds.",
+      "Use bounded connection pooling and monitor connection utilization, query latency, and storage growth before increasing database capacity.",
+      "Define an automated backup strategy with retention policies, point-in-time recovery where supported, and regularly tested restoration procedures.",
     );
   }
   if (containerized) {
@@ -457,7 +451,7 @@ function buildSecurityRecommendations(options: {
   }
   if (options.githubActionsDetected) {
     recommendations.push(
-      "Protect deployment workflows with branch controls, least-privilege repository permissions, and scoped deployment credentials.",
+      "Protect deployment workflows with branch controls and least-privilege repository permissions; prefer platform integrations or short-lived identity over exposing deployment tokens to application services.",
     );
   }
   if (options.terraformDetected) {
@@ -478,17 +472,6 @@ function includesTechnology(values: string[], markers: string[]): boolean {
 function isNextJs(frontend: string): boolean {
   const normalizedFrontend = frontend.toLowerCase();
   return normalizedFrontend.includes("next.js") || normalizedFrontend.includes("nextjs");
-}
-
-function canonicalDatabaseName(database: string): string {
-  const normalizedDatabase = database.toLowerCase();
-
-  if (normalizedDatabase.includes("postgres")) return "PostgreSQL";
-  if (normalizedDatabase.includes("mysql")) return "MySQL";
-  if (normalizedDatabase.includes("mongo")) return "MongoDB";
-  if (normalizedDatabase.includes("dynamodb")) return "DynamoDB";
-
-  return database;
 }
 
 function getErrorMessage(error: unknown): string {
