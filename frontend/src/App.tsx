@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { analyzeRepository } from "./services/api";
 import {
   Cloud,
   Sparkles,
@@ -7,7 +9,38 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+type RepositoryAnalysis = {
+  framework: string;
+  backend: string;
+  database: string;
+  deployment: string;
+};
+
 function App() {
+  const [repository, setRepository] = useState("");
+  const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleAnalyze() {
+    const repositoryUrl = repository.trim();
+
+    if (!repositoryUrl) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("Analyzing repository:", repositoryUrl);
+
+      const result = await analyzeRepository(repositoryUrl);
+      setAnalysis(result.analysis);
+    } catch (error) {
+      console.error("Repository analysis failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
 
@@ -64,13 +97,39 @@ function App() {
         </p>
 
 
-        <button className="mt-10 inline-flex items-center gap-3 rounded-xl bg-blue-600 px-8 py-4 text-lg font-semibold hover:bg-blue-700">
+        <div className="mx-auto mt-10 flex max-w-2xl flex-col gap-4 sm:flex-row">
+          <input
+            type="url"
+            value={repository}
+            onChange={(e) => setRepository(e.target.value)}
+            placeholder="https://github.com/owner/repository"
+            aria-label="GitHub repository URL"
+            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-5 py-4 text-white outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          />
 
-          Analyze GitHub Repository
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={loading || !repository.trim()}
+            className="inline-flex items-center justify-center gap-3 rounded-xl bg-blue-600 px-8 py-4 text-lg font-semibold transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Analyzing..." : "Generate Architecture Plan"}
+            {!loading && <ArrowRight size={20} />}
+          </button>
+        </div>
 
-          <ArrowRight size={20}/>
+        {analysis && (
+          <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 text-left shadow-xl shadow-blue-950/20">
+            <h2 className="text-xl font-semibold">Repository Analysis</h2>
 
-        </button>
+            <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+              <AnalysisResult label="Framework" value={analysis.framework} />
+              <AnalysisResult label="Backend" value={analysis.backend} />
+              <AnalysisResult label="Database" value={analysis.database} />
+              <AnalysisResult label="Deployment" value={analysis.deployment} />
+            </dl>
+          </div>
+        )}
 
       </section>
 
@@ -160,6 +219,16 @@ function App() {
       </section>
 
 
+    </div>
+  );
+}
+
+
+function AnalysisResult({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+      <dt className="text-sm font-medium text-slate-400">{label}</dt>
+      <dd className="mt-1 text-base font-semibold text-white">{value}</dd>
     </div>
   );
 }
