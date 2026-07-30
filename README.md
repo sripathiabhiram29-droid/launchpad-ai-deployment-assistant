@@ -78,3 +78,31 @@ This creates a stronger bridge between Railway's developer experience and the ar
 - Automated deployment execution.
 - Cloud cost estimation and optimization guidance.
 - Infrastructure as Code generation.
+
+## Live Demo
+
+Frontend Application:
+exquisite-wonder-production-3212.up.railway.app
+
+Backend API:
+https://launchpad-ai-deployment-assistant-production.up.railway.app
+
+## Architecture
+
+LaunchPad AI is deployed as a multi-service Railway application:
+
+- React + Vite frontend hosted on Railway
+- Node.js + Express backend API hosted on Railway
+- GitHub API integration for repository analysis
+- AI-powered architecture recommendation engine
+- Cloud readiness scoring engine
+- Deployment checklist generation engine
+
+## Features
+
+- Repository technology stack detection
+- Cloud architecture recommendations
+- Railway deployment blueprint generation
+- Security and scaling recommendations
+- Production readiness scoring
+- Deployment workflow guidance
