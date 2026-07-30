@@ -5,10 +5,22 @@ import {
   isGitHubRateLimitError,
 } from "../services/githubService";
 
+const ANALYSIS_TIMEOUT_MS = 30_000;
+
+class AnalysisTimeoutError extends Error {
+  constructor() {
+    super("Analysis timeout");
+    this.name = "AnalysisTimeoutError";
+  }
+}
+
 export async function analyzeRepository(
   req: Request,
   res: Response,
 ): Promise<void> {
+  console.log("Analyze request received");
+  console.log(req.body);
+
   try {
     const repository = req.body?.repository;
 
@@ -24,13 +36,26 @@ export async function analyzeRepository(
       return;
     }
 
-    const analysis = await analyzeRepo(repository);
+    const analysis = await withTimeout(
+      analyzeRepo(repository),
+      ANALYSIS_TIMEOUT_MS,
+    );
 
     res.json({
       repository,
       analysis,
     });
+    console.log("Response returned");
   } catch (error) {
+    if (error instanceof AnalysisTimeoutError) {
+      logErrorDetails("Analysis timeout", error);
+      res.status(504).json({
+        status: "error",
+        message: "Analysis timeout",
+      });
+      return;
+    }
+
     logAnalysisError(error);
 
     if (isGitHubRateLimitError(error)) {
@@ -44,6 +69,25 @@ export async function analyzeRepository(
       error: "Repository analysis failed",
     });
   }
+}
+
+function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new AnalysisTimeoutError());
+    }, timeoutMs);
+
+    operation.then(
+      (result) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      },
+      (error: unknown) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
 }
 
 function logAnalysisError(error: unknown): void {

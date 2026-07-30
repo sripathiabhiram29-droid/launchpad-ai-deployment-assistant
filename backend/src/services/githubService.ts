@@ -26,11 +26,13 @@ export const githubClient = new Octokit({
 });
 
 export async function getRepositoryInfo(repositoryUrl: string) {
+  console.log("GitHub repository parsing");
   const parts = repositoryUrl.replace("https://github.com/", "").split("/");
   const owner = parts[0];
   const repo = parts[1];
 
   try {
+    console.log("GitHub API call");
     const response = await githubClient.repos.get({
       owner,
       repo,

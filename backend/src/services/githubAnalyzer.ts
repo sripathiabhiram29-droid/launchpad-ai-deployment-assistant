@@ -11,12 +11,14 @@ import {
 export async function analyzeRepository(repository: string) {
 
   const repoInfo = await getRepositoryInfo(repository);
+  console.log("Repository scanning");
   const repositoryIntelligence = await scanRepository(
     repoInfo.owner.login,
     repoInfo.name,
   );
   const { technologyStack, deploymentRecommendation } =
     repositoryIntelligence;
+  console.log("Architecture generation");
   const architectureRecommendation = generateArchitectureRecommendation(
     technologyStack,
   );
