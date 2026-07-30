@@ -10,16 +10,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.json({
-    message: "LaunchPad AI Backend Running"
+    name: "LaunchPad AI",
+    status: "running",
+    service: "backend",
   });
 });
 
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "healthy",
+    service: "launchpad-ai-backend",
+  });
+});
 
 app.use("/api/analyze", analyzeRoute);
-
 
 const PORT = process.env.PORT || 5050;
 
